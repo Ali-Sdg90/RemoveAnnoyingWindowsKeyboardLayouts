@@ -10,41 +10,44 @@ repo: https://github.com/BSeyfi/RemoveAnnoyingWindowsKeyboardLayouts
 echo $credit
 
 $LanguageTagToRemove = "fa"
-#all layouts should be defined under the $LanguageTagToRemove (eg all would be fa farsi)
-$KeyboardsToRemove = @("0429:00000429", "0429:B0020429", "0429:00050429")
-
+# Only keep the 0429:00050429 layout
+$KeyboardsToKeep = @("0429:00050429")
+$KeyboardsToRemove = @("0429:00000429", "0429:B0020429")
 
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
-#First, add the annoying layouts
+# First, add the annoying layouts
 $LanguageList = Get-WinUserLanguageList
- foreach ($kb in $KeyboardsToRemove)
- {
-	$LanguageList[0].InputMethodTips.Add($kb) 
-	Write-Host "Added: $kb"
- }
- 
+foreach ($kb in $KeyboardsToRemove) {
+    $LanguageList[0].InputMethodTips.Add($kb) 
+    Write-Host "Added: $kb"
+}
+
 Set-WinUserLanguageList $LanguageList -Force
 
-
-#Next, remove the annoying layouts
+# Next, remove the annoying layouts, keeping only 0429:00050429
 $LanguageList = Get-WinUserLanguageList
 
 for ($i = 0; $i -lt $LanguageList.Count; $i++) {
     if ($LanguageList[$i].LanguageTag -eq $LanguageTagToRemove) {
         $LanguageIndex = $i
-		break
+        break
     }
 }
 
 if ($null -ne $LanguageIndex) {
-    foreach ($kb in $KeyboardsToRemove) {
-        if ($LanguageList[$LanguageIndex].InputMethodTips.Contains($kb)) {
-            $LanguageList[$LanguageIndex].InputMethodTips.Remove($kb) | Out-Null
-            Write-Host "Removed: $kb"
-        } else {
-            Write-Host "Not found: $kb"
+    # Collect the layouts to be removed
+    $LayoutsToRemove = @()
+    foreach ($kb in $LanguageList[$LanguageIndex].InputMethodTips) {
+        if ($KeyboardsToRemove.Contains($kb) -and -not $KeyboardsToKeep.Contains($kb)) {
+            $LayoutsToRemove += $kb
         }
+    }
+
+    # Remove the collected layouts
+    foreach ($kb in $LayoutsToRemove) {
+        $LanguageList[$LanguageIndex].InputMethodTips.Remove($kb) | Out-Null
+        Write-Host "Removed: $kb"
     }
 
     Set-WinUserLanguageList $LanguageList -Force
